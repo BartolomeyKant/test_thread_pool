@@ -6,6 +6,7 @@ cmake_minimum_required(VERSION 3.21)
 add_library(
 	thrdpool
 	STATIC
+	action.cpp
 	thread.cpp
 	thread_pool.cpp
 )

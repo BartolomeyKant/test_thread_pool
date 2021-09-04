@@ -1,41 +1,127 @@
 #ifndef ACTION_HH
 #define ACTION_HH
 
+#include <mutex>
+#include <condition_variable>
 #include <functional>
-#include <type_traits>
 
 namespace thread_pool
 {
+	class Thread;
 	/**
-	 * Базовый класс для описания действия
+	 * Класс для сохранения созданного действия
 	*/
-	class ActionBase
+	class Action
 	{
 	public:
-		virtual void run() = 0;
-	};
+		/**
+		 * Блокирует текущий поток до завершения работы действия.
+		 * Если действие уже завершено, то возвращает управление немедленно.
+		*/
+		void wait();
 
-	class Action : public ActionBase
-	{
-	public:
-		Action(std::function<void()> func) : _action(func) {}
-		void run() override
-		{
-			_action();
-		}
+	protected:
+		virtual void do_action() = 0;
 
 	private:
-		std::function<void()> _action;
+		// добавляем дружеский класс для удобства доступа к run
+		friend class Thread;
+		void run();
+
+		bool _is_complete = false;
+		std::mutex _wait_mutex;
+		std::condition_variable _wait_cv;
 	};
 
-	template <class Callable, class... Args>
-	Action *make_action(Callable func, Args... args)
+	/**
+	 * Шаблонная реализация действия
+	 * R - тип результата выполнения действия
+	*/
+	template <class R>
+	class ActionImpl : public Action
 	{
-		auto action = [args..., func]() -> void
+	public:
+		ActionImpl(std::function<R()> f) : _func(f), _res{} {}
+
+		/**
+		 * Получить результат выполнения
+		*/
+		const R &res() const { return _res; }
+		/**
+		 * Получить результат выполнения
+		*/
+		R &res() { return _res; }
+
+	protected:
+		void do_action() { _res = _func(); }
+
+	private:
+		R _res;
+		std::function<R()> _func;
+	};
+
+	template <>
+	class ActionImpl<void> : public Action
+	{
+	public:
+		ActionImpl(std::function<void()> f) : _func(f) {}
+
+	protected:
+		void do_action() { _func(); }
+
+	private:
+		std::function<void()> _func;
+	};
+
+	class ActionResult
+	{
+	public:
+		ActionResult(const std::shared_ptr<Action> &action) : _action(action) {}
+		ActionResult(const ActionResult &other) : _action(other._action){};
+		ActionResult(ActionResult &&other)
 		{
-			func(args...);
-		};
-		return new Action(action);
-	}
+			std::swap(_action, other._action);
+		}
+
+		/**
+			 * Блокирует текущий поток до завершения работы действия.
+			 * Если действие уже завершено, то возвращает управление немедленно.
+			*/
+		void wait();
+
+	protected:
+		std::shared_ptr<Action> _action;
+	};
+
+	template <class R>
+	class ActionResultImpl : public ActionResult
+	{
+	public:
+		ActionResultImpl(const std::shared_ptr<Action> &action) : ActionResult(action) {}
+		ActionResultImpl(const ActionResultImpl &other) : ActionResult(other._action){};
+		ActionResultImpl(ActionResultImpl &&other) : ActionResult(std::forward<ActionResultImpl>(other._action))
+		{
+		}
+
+		/**
+		 * Получить результат выполнения
+		*/
+		const R &res() const { return std::dynamic_pointer_cast<ActionImpl<R>>(_action)->res(); }
+		/**
+		 * Получить результат выполнения
+		*/
+		R &res() { return std::dynamic_pointer_cast<ActionImpl<R>>(_action)->res(); }
+	};
+
+	template <>
+	class ActionResultImpl<void> : public ActionResult
+	{
+	public:
+		ActionResultImpl(const std::shared_ptr<Action> &action) : ActionResult(action) {}
+		ActionResultImpl(const ActionResultImpl &other) : ActionResult(other._action){};
+		ActionResultImpl(ActionResultImpl &&other) : ActionResult(std::forward<ActionResultImpl>(other._action))
+		{
+		}
+	};
 } // namespace thread_pool
 #endif /*ACTION_HH*/
