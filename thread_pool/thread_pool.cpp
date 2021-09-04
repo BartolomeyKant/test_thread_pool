@@ -20,10 +20,9 @@ namespace thread_pool
 		}
 	}
 
-	void ThreadPool::run_action(unique_ptr<ActionBase> &&action)
+	void ThreadPool::run_action(const shared_ptr<Action> &action)
 	{
 		unique_lock<mutex> lk(_pending_mutex);
-		printf("create new action \n");
 
 		// найти свободный поток и запустить его на выполнение
 		for (auto &t : _threads)
@@ -34,15 +33,13 @@ namespace thread_pool
 				{
 					t->start();
 				}
-				printf("run action\n");
-				t->run_action(forward<unique_ptr<ActionBase>>(action));
+				t->run_action(action);
 				// действие запущено, можно выйти
 				return;
 			}
 		}
-		printf("add action in queue\n");
 		// действие не было запущено, откладываем его в очередь
-		_pending_actions.push(forward<unique_ptr<ActionBase>>(action));
+		_pending_actions.push(action);
 	}
 
 	void ThreadPool::action_completed(Thread &thread)
@@ -51,7 +48,7 @@ namespace thread_pool
 		// поток сообщил, что закончил выполнение действия, найдем ему другое
 		if (!_pending_actions.empty())
 		{
-			// ! так как этот callback вызывается из потока thread
+			// !!! так как этот callback вызывается из потока thread
 			// следует учитывать, что run_action только добавляет
 			// action в thread
 			// непосредственный запуск, произойдет после завершения callback'а
