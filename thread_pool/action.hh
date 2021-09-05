@@ -21,6 +21,15 @@ namespace thread_pool
 		*/
 		void wait();
 
+		/**
+		 * Задает приоритет действия.
+		*/
+		void set_priority(uint priority) { _priority = priority; }
+		/**
+		 * Получает приоритет действия
+		*/
+		uint priority() const { return _priority; }
+
 	protected:
 		virtual void do_action() = 0;
 
@@ -32,6 +41,7 @@ namespace thread_pool
 		bool _is_complete = false;
 		std::mutex _wait_mutex;
 		std::condition_variable _wait_cv;
+		uint _priority = 0;
 	};
 
 	/**
@@ -86,10 +96,16 @@ namespace thread_pool
 		virtual ~ActionResult() = default;
 
 		/**
-			 * Блокирует текущий поток до завершения работы действия.
-			 * Если действие уже завершено, то возвращает управление немедленно.
-			*/
+		 * Блокирует текущий поток до завершения работы действия.
+		 * Если действие уже завершено, то возвращает управление немедленно.
+		*/
 		void wait();
+
+		/**
+		 * Задает приоритет действию.
+		 * Действие с большим приоритетом быстрее выходит из очереди
+		*/
+		void set_priority(uint priority) { _action->set_priority(priority); }
 
 	protected:
 		std::shared_ptr<Action> _action;

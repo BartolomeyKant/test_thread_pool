@@ -56,7 +56,29 @@ namespace thread_pool
 			}
 		}
 		// действие не было запущено, откладываем его в очередь
-		_pending_actions.push(action);
+		add_to_pending(action);
+	}
+
+	void ThreadPool::add_to_pending(const std::shared_ptr<Action> &action)
+	{
+		_pending_actions.push_back(action);
+	}
+
+	std::shared_ptr<Action> ThreadPool::get_action()
+	{
+		// ищем действие с максимальным приоритетом
+		pair<int, decltype(_pending_actions.begin())> max_prio;
+		for (auto it = _pending_actions.begin(); it != _pending_actions.end(); it++)
+		{
+			if ((*it)->priority() > max_prio.first)
+			{
+				max_prio.first = (*it)->priority();
+				max_prio.second = it;
+			}
+		}
+		auto a = *max_prio.second;
+		_pending_actions.erase(max_prio.second);
+		return a;
 	}
 
 	void ThreadPool::action_completed(Thread &thread)
@@ -69,9 +91,7 @@ namespace thread_pool
 			// следует учитывать, что run_action только добавляет
 			// action в thread
 			// непосредственный запуск, произойдет после завершения callback'а
-			thread.run_action(move(_pending_actions.front()));
-			// удаляем переданный элемент
-			_pending_actions.pop();
+			thread.run_action(get_action());
 		}
 	}
 

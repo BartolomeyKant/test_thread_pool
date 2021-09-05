@@ -2,7 +2,6 @@
 #define THREAD_POOL_HH
 
 #include <list>
-#include <queue>
 #include <mutex>
 #include <type_traits>
 
@@ -15,11 +14,11 @@ namespace thread_pool
 	{
 	public:
 		ThreadPool(uint num = 0);
-		ThreadPool(const ThreadPool& other) = delete;
-		ThreadPool(ThreadPool&& other);
+		ThreadPool(const ThreadPool &other) = delete;
+		ThreadPool(ThreadPool &&other);
 		~ThreadPool() = default;
 
-		ThreadPool& operator=(ThreadPool&& other);
+		ThreadPool &operator=(ThreadPool &&other);
 
 		/**
 		 * Запустить действие в свободном потоке.
@@ -37,12 +36,13 @@ namespace thread_pool
 		 * лямбда функции
 		*/
 		template <class R, class C, class... Args>
-		ActionResultImpl<R> run_action(R (C::*func)(Args... arg), C &obj, Args... args)
+		ActionResultImpl<R>
+		run_action(R (C::*func)(Args... arg), C &obj, Args... args, int priority)
 		{
 			auto a = std::bind(func, obj, std::forward<Args>(args)...);
 			auto ptr = std::make_shared<ActionImpl<R>>(a);
 			auto a_res = ActionResultImpl<R>(ptr);
-			run_action(std::dynamic_pointer_cast<Action>(ptr));
+			run_action(std::dynamic_pointer_cast<Action>(ptr), priority);
 			return a_res;
 		}
 
@@ -60,7 +60,8 @@ namespace thread_pool
 		 * лямбда функции
 		*/
 		template <class R, class... Args>
-		ActionResultImpl<R> run_action(R (*func)(Args... arg), Args... args)
+		ActionResultImpl<R>
+		run_action(R (*func)(Args... arg), Args... args)
 		{
 			auto a = std::bind(func, std::forward<Args>(args)...);
 			auto ptr = std::make_shared<ActionImpl<R>>(a);
@@ -82,7 +83,8 @@ namespace thread_pool
 		 * [&val](int new_val){val = new_val;}
 		*/
 		template <class R, class Callable, class... Args>
-		typename std::enable_if<std::is_invocable_r<R, Callable, Args...>::value, ActionResultImpl<R>>::type run_action(Callable func, Args &&...args)
+		typename std::enable_if<std::is_invocable_r<R, Callable, Args...>::value, ActionResultImpl<R>>::type
+		run_action(Callable func, Args &&...args)
 		{
 			auto a = std::bind(func, std::forward<Args>(args)...);
 			auto ptr = std::make_shared<ActionImpl<R>>(a);
@@ -100,11 +102,15 @@ namespace thread_pool
 		// функция для запуска нового действия
 		void run_action(const std::shared_ptr<Action> &action);
 
+		// добавление действия в список ожидания
+		void add_to_pending(const std::shared_ptr<Action> &action);
+
 		// callback, который вызывает поток thread при завершении действия
 		void action_completed(Thread &thread);
+		std::shared_ptr<Action> get_action();
 
 		std::list<std::unique_ptr<Thread>> _threads;
-		std::queue<std::shared_ptr<Action>> _pending_actions;
+		std::list<std::shared_ptr<Action>> _pending_actions;
 
 		std::mutex _pending_mutex;
 	};
