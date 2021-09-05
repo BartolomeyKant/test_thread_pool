@@ -14,8 +14,12 @@ namespace thread_pool
 	class ThreadPool
 	{
 	public:
-		ThreadPool();
+		ThreadPool(uint num = 0);
+		ThreadPool(const ThreadPool& other) = delete;
+		ThreadPool(ThreadPool&& other);
 		~ThreadPool() = default;
+
+		ThreadPool& operator=(ThreadPool&& other);
 
 		/**
 		 * Запустить действие в свободном потоке.
@@ -33,7 +37,7 @@ namespace thread_pool
 		 * лямбда функции
 		*/
 		template <class R, class C, class... Args>
-		ActionResultImpl<R> run_action(R (C::*func)(Args... arg), C &obj, Args &&...args)
+		ActionResultImpl<R> run_action(R (C::*func)(Args... arg), C &obj, Args... args)
 		{
 			auto a = std::bind(func, obj, std::forward<Args>(args)...);
 			auto ptr = std::make_shared<ActionImpl<R>>(a);
@@ -56,7 +60,7 @@ namespace thread_pool
 		 * лямбда функции
 		*/
 		template <class R, class... Args>
-		ActionResultImpl<R> run_action(R (*func)(Args... arg), Args &&...args)
+		ActionResultImpl<R> run_action(R (*func)(Args... arg), Args... args)
 		{
 			auto a = std::bind(func, std::forward<Args>(args)...);
 			auto ptr = std::make_shared<ActionImpl<R>>(a);
@@ -86,6 +90,11 @@ namespace thread_pool
 			run_action(std::dynamic_pointer_cast<Action>(ptr));
 			return a_res;
 		}
+
+		/**
+		 * Получить количество потоков
+		*/
+		uint threads_num() const { return _threads.size(); }
 
 	private:
 		// функция для запуска нового действия

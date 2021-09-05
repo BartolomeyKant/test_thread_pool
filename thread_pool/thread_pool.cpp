@@ -4,12 +4,14 @@ namespace thread_pool
 {
 	using namespace std;
 
-	ThreadPool::ThreadPool()
+	ThreadPool::ThreadPool(uint num)
 	{
-		auto hw_threads = std::thread::hardware_concurrency();
-		printf("create %d threads\n", hw_threads);
+		if (num == 0)
+		{
+			num = std::thread::hardware_concurrency();
+		}
 		// добавить  hw_threads потоков
-		for (auto i = 0; i < hw_threads; i++)
+		for (auto i = 0; i < num; i++)
 		{
 			_threads.push_back(make_unique<Thread>());
 			// Добавить callback для уведомления об окончании действия
@@ -18,6 +20,21 @@ namespace thread_pool
 				action_completed(thread);
 			};
 		}
+	}
+	ThreadPool::ThreadPool(ThreadPool &&other)
+		: _threads(move(other._threads)),
+		  _pending_actions(move(other._pending_actions))
+	{
+	}
+
+	ThreadPool& ThreadPool::operator=(ThreadPool&& other)
+	{
+		if (this != &other) {
+			_threads = move(other._threads);
+			_pending_actions = move(other._pending_actions);
+			_pending_mutex.unlock();
+		}
+		return *this;
 	}
 
 	void ThreadPool::run_action(const shared_ptr<Action> &action)
