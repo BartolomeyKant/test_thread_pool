@@ -8,15 +8,10 @@ namespace thread_pool
 	{
 		_need_work.store(false);
 		_cv_action.notify_one();
-		if (!_is_busy.load() && _thr.joinable())
+		if (_thr.joinable())
 		{
 			// дожидаемся безопасного завершения потока
 			_thr.join();
-		}
-		else
-		{
-			// иначе даже не пытаемся дождаться, вызываем terminate
-			_thr.~thread();
 		}
 	}
 
@@ -61,7 +56,10 @@ namespace thread_pool
 				}
 			}
 			_is_busy.store(false);
-			_cv_action.wait(lk);
+			// дополнительная проверка на необходимость работать, а потом ожидаем сигнала
+			if (_need_work.load()) {
+				_cv_action.wait(lk);
+			}
 		} while (_need_work.load());
 	}
 
