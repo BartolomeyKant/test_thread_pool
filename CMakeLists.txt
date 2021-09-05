@@ -12,6 +12,7 @@ add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/thread_pool)
 
 add_executable(thrdpool_task
 	src/main.cpp
+	src/simple_delims.cpp
 )
 
 target_include_directories(thrdpool_task PUBLIC ${CMAKE_CURRENT_LIST_DIR})
