@@ -36,15 +36,18 @@ void simple_delims(const string &num, const string &prio)
 	try
 	{
 		SimpleDelims::num_t N = stoull(num);
-		SimpleDelims::num_t P = stoull(prio);
-		cout << "start task for find all simple delimiters N:" << N << " P:" << P << endl;
+		int P = stol(prio);
+		string task_name = "task: " + to_string(tasks.size());
+		cout << "start task for find all simple delimiters N:" << N << " P:" << P
+			 << "name " << task_name << endl;
 
-		auto res = pool.run_action(&do_simple_delims, N, "delimiters for " + to_string(N));
+		auto res = pool.run_action(&do_simple_delims, N, task_name);
+		res.set_priority(P);
 		tasks.push_back(res);
 	}
 	catch (exception &e)
 	{
-		cerr << "get wrong numbers " << e.what() << endl;
+		cerr << "get wrong numbers " << num << " " << prio << " " << e.what() << endl;
 	}
 }
 
