@@ -1,71 +1,114 @@
 #include <iostream>
 
-#include <thread>
-#include <functional>
-
+#include <string>
+#include <regex>
+#include <list>
 #include <thread_pool/thread_pool.hh>
+
+#include "src/simple_delims.hh"
 
 using namespace std;
 
+thread_pool::ThreadPool pool;
 
-void do_sleep(int time, float d) {
-	cout << "start action d value is " << d <<endl;
-	for (auto i = 0; i < time; i++)
-	{
-		cout << "sleep for 1 sec d: " << d << endl << flush;
-		this_thread::sleep_for(chrono::seconds(1));
-	}
+list<thread_pool::ActionResult> tasks;
+
+void restart_pool() {
+	tasks.clear();
+	pool = thread_pool::ThreadPool(pool.threads_num() + 1);
+	cout << "recreate all threads and add new one" << endl;
 }
 
-void do_work(int &res, int) {
-	res = 10;
-}
-
-struct A {
-	void foo(string& s) {
-		s = "new value";
-		cout << "call to foo " << s << endl;
-	}
-};
-
-int main(int argc, char **argv)
+void do_simple_delims(SimpleDelims::num_t N, string task_name)
 {
-	(void)argc;
-	(void)argv;
+	auto res = SimpleDelims::gen_simple_delims(N);
+	cout << "result for " << task_name << endl;
+	cout << "[";
+	for (auto n : res.get())
+	{
+		cout << n << " ";
+	}
+	cout << "]" << endl;
+}
 
-	thread_pool::ThreadPool _pool;
+void simple_delims(const string &num, const string &prio)
+{
+	try
+	{
+		SimpleDelims::num_t N = stoull(num);
+		SimpleDelims::num_t P = stoull(prio);
+		cout << "start task for find all simple delimiters N:" << N << " P:" << P << endl;
 
-	auto fs = [](int i, float a)
-	{ do_sleep(i, a); };
+		auto res = pool.run_action(&do_simple_delims, N, "delimiters for " + to_string(N));
+		tasks.push_back(res);
+	}
+	catch (exception &e)
+	{
+		cerr << "get wrong numbers " << e.what() << endl;
+	}
+}
 
-	function<void (int, float)> f = &do_sleep;
+void run_loop()
+{
+	bool do_work = true;
+	// для парсинга чисел будем использовать регех
+	smatch m;
+	regex re(R"((\d+) +(\d+))");
+	char buf[2048];
 
-	A a;
-	string ss = "asdasd";
-	auto res_wait1 = _pool.run_action(&A::foo, a, ss);
+	auto usage = []()
+	{
+		cout << "Try one of the following commands:" << endl
+			 << "\t"
+			 << "restart - for restart current thread pool and loose all results" << endl
+			 << "\t"
+			 << "exit - wait for complete all tasks, print result and exit" << endl
+			 << "\t"
+			 << "<N> <P> - two numbers - start task for calculate all simple delimiters for N with priority P" << endl
+			 << "\t" << "help - for print this message" << endl;
+	};
+	// читаем пользовательский ввод и разбираем, что он от нас хочет
+	while (do_work)
+	{
+		// печатем промпт
+		cout << "> ";
+		cin.getline(buf, sizeof(buf));
+		string command = buf;
 
-	auto res_wait2 = _pool.run_action(&do_sleep, 3, 4.12f);
-	auto res_wait3 = _pool.run_action<void>([](int i, float f)
-					 { cout << "run lambda " << i << " " << 4.3 << endl; },
-					 5, 4.3f);
+		if (!cin.good()) {
+			do_work = false;
+		}
 
-	auto res_wait4 = _pool.run_action<int>([](int a)->int {return a+1;}, 3);
+		if (command == "exit") {
+			do_work = false;
+		}
+		else if (command == "restart") {
+			restart_pool();
+		}
+		else if(regex_match(command, m, re)) {
+			simple_delims(m[1], m[2]);
+		}
+		else if (command == "help")
+		{
+			usage();
+		}
+		else if (command.empty()) {
+			continue;
+		}
+		else {
+			cerr << "Get unknown command" << endl;
+			usage();
+		}
+	}
 
-	int change_value =  0;
-	auto res_wait5 = _pool.run_action<void>([&change_value](){change_value++;});
+	for(auto& r: tasks) {
+		r.wait();
+	}
+}
 
-	res_wait4.wait();
-	cout << "wait4 res: " << res_wait4.res() << endl;
-
-	res_wait5.wait();
-	cout << "wait5 res: " << change_value << endl;
-
-	res_wait1.wait();
-	cout << "1 completed" << endl;
-	res_wait2.wait();
-	cout << "2 completed" << endl;
-	res_wait3.wait();
-	cout << "3 completed" << endl;
+int main()
+{
+	run_loop();
 
 	return 0;
 }
