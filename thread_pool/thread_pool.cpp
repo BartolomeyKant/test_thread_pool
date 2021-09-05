@@ -25,14 +25,39 @@ namespace thread_pool
 		: _threads(move(other._threads)),
 		  _pending_actions(move(other._pending_actions))
 	{
+		for (auto &t : _threads)
+		{
+			t->_cb_end_action = [this](Thread &thread)
+			{
+				action_completed(thread);
+			};
+		}
 	}
 
-	ThreadPool& ThreadPool::operator=(ThreadPool&& other)
+	ThreadPool::~ThreadPool()
 	{
-		if (this != &other) {
-			_threads = move(other._threads);
-			_pending_actions = move(other._pending_actions);
+		_pending_actions.clear();
+		_threads.clear();
+	}
+
+	ThreadPool &ThreadPool::operator=(ThreadPool &&other)
+	{
+		if (this != &other)
+		{
+			_pending_actions.clear();
 			_pending_mutex.unlock();
+			_threads.clear();
+
+			_pending_actions = move(other._pending_actions);
+			_threads = move(other._threads);
+
+			for (auto &t : _threads)
+			{
+				t->_cb_end_action = [this](Thread &thread)
+				{
+					action_completed(thread);
+				};
+			}
 		}
 		return *this;
 	}

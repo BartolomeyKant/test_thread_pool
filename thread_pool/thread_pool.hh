@@ -16,7 +16,7 @@ namespace thread_pool
 		ThreadPool(uint num = 0);
 		ThreadPool(const ThreadPool &other) = delete;
 		ThreadPool(ThreadPool &&other);
-		~ThreadPool() = default;
+		~ThreadPool();
 
 		ThreadPool &operator=(ThreadPool &&other);
 
