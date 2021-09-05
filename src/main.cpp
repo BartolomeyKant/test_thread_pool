@@ -14,9 +14,9 @@ thread_pool::ThreadPool pool;
 list<thread_pool::ActionResult> tasks;
 
 void restart_pool() {
-	tasks.clear();
 	pool = thread_pool::ThreadPool(pool.threads_num() + 1);
 	cout << "recreate all threads and add new one" << endl;
+	tasks.clear();
 }
 
 void do_simple_delims(SimpleDelims::num_t N, string task_name)
@@ -37,9 +37,9 @@ void simple_delims(const string &num, const string &prio)
 	{
 		SimpleDelims::num_t N = stoull(num);
 		int P = stol(prio);
-		string task_name = "task: " + to_string(tasks.size());
+		string task_name = "task_" + to_string(tasks.size());
 		cout << "start task for find all simple delimiters N:" << N << " P:" << P
-			 << "name " << task_name << endl;
+			 << " name " << task_name << endl;
 
 		auto res = pool.run_action(&do_simple_delims, N, task_name);
 		res.set_priority(P);
