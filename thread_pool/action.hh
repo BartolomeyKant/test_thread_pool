@@ -14,6 +14,7 @@ namespace thread_pool
 	class Action
 	{
 	public:
+		virtual ~Action() = default;
 		/**
 		 * Блокирует текущий поток до завершения работы действия.
 		 * Если действие уже завершено, то возвращает управление немедленно.
@@ -41,22 +42,22 @@ namespace thread_pool
 	class ActionImpl : public Action
 	{
 	public:
-		ActionImpl(std::function<R()> f) : _func(f), _res{} {}
+		ActionImpl(std::function<R()> f) : _func(f) {}
 
 		/**
 		 * Получить результат выполнения
 		*/
-		const R &res() const { return _res; }
+		const R &res() const { return *_res; }
 		/**
 		 * Получить результат выполнения
 		*/
-		R &res() { return _res; }
+		R &res() { return *_res; }
 
 	protected:
-		void do_action() { _res = _func(); }
+		void do_action() { _res = std::make_unique<R>(_func()); }
 
 	private:
-		R _res;
+		std::unique_ptr<R> _res;
 		std::function<R()> _func;
 	};
 
@@ -82,6 +83,7 @@ namespace thread_pool
 		{
 			std::swap(_action, other._action);
 		}
+		virtual ~ActionResult() = default;
 
 		/**
 			 * Блокирует текущий поток до завершения работы действия.
