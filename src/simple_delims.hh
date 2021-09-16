@@ -2,6 +2,7 @@
 #define SIMPLE_DELIMS_HH
 
 #include <inttypes.h>
+#include <mutex>
 #include <vector>
 
 // Класс хранит список всех простых делителей числа N
@@ -31,7 +32,13 @@ private:
 	// проверяет правильность числа
 	bool is_prime(num_t n);
 
+	// сохраняет простое число в список
+	void save_prime(num_t n);
+
 	num_list_t _list;
+
+	static std::mutex _primes_mutex;
+	static num_list_t _primes;
 };
 
 #endif /*SIMPLE_DELIMS_HH*/

@@ -1,6 +1,7 @@
 #include "src/simple_delims.hh"
 
 #include <stdio.h>
+#include <math.h>
 
 using namespace std;
 
@@ -24,14 +25,17 @@ SimpleDelims::SimpleDelims(SimpleDelims &&other) : _list(move(other._list))
 
 void SimpleDelims::init(num_t N)
 {
-	// перебираем все числа меньше чем sqrt(N)
-	// при переполнении sqrt будет меньше i
-	for (num_t i = 2, sqrt = i * i; !(sqrt > N || sqrt < i); i++, sqrt = i * i)
+	// перебираем все числа меньше чем N
+	for (num_t i = 2; i <= N; i++)
 	{
 		// если N делится без остатка на i и i простое число, добавим его в список
-		if (N % i == 0 && is_prime(i))
+		if (N % i == 0)
 		{
-			_list.push_back(i);
+			printf("delim %lu\n", i);
+			if (is_prime(i))
+			{
+				_list.push_back(i);
+			}
 		}
 	}
 }
@@ -42,12 +46,8 @@ bool SimpleDelims::is_prime(num_t n)
 	{
 		return false;
 	}
-	// список известных простых чисел
-	// остальное вычислим
-	constexpr num_t simples[] = {2, 3, 5, 7, 11};
-
 	// проверяем известный список
-	for (num_t i : simples)
+	for (num_t i : _primes)
 	{
 		if (n == i)
 		{
@@ -55,8 +55,11 @@ bool SimpleDelims::is_prime(num_t n)
 		}
 	}
 
+	// проверяем только числа меньше квадратного корня
+	num_t s = sqrt(n);
 	// проверяем по нормальному
-	for (num_t i = simples[4] + 1, sqrt = i * i; !(sqrt > n || sqrt < i); i++, sqrt = i * i)
+	// корень числа - вероятный делитель, поэтому начинаем проверку с него
+	for (num_t i = s; i >= 2; i--)
 	{
 		// n не должно ни на что делится кроме себя
 		if (n % i == 0)
@@ -65,5 +68,14 @@ bool SimpleDelims::is_prime(num_t n)
 		}
 	}
 
+	save_prime(n);
 	return true;
+}
+
+mutex SimpleDelims::_primes_mutex = {};
+SimpleDelims::num_list_t SimpleDelims::_primes = {};
+
+void SimpleDelims::save_prime(num_t n) {
+	unique_lock<mutex> lk(_primes_mutex);
+	_primes.push_back(n);
 }
