@@ -45,7 +45,6 @@ namespace thread_pool
 		if (this != &other)
 		{
 			_pending_actions.clear();
-			_pending_mutex.unlock();
 			_threads.clear();
 
 			_pending_actions = move(other._pending_actions);
